@@ -75,7 +75,6 @@ body{display:flex;flex-direction:column}
 }
 .brand{display:flex;align-items:center;gap:6px;font-size:14px;letter-spacing:.5px}
 .brand .logo{color:var(--accent);font-size:16px}
-.brand .ver{font-size:10px;color:var(--txt3);border:1px solid var(--line2);padding:0 4px;border-radius:3px}
 .proj-title{width:200px;background:transparent;border:1px solid transparent;font-size:12.5px;color:var(--txt2)}
 .proj-title:hover{border-color:var(--line)}
 .proj-title:focus{color:var(--txt)}
@@ -394,7 +393,7 @@ kbd{background:#2c3138;border:1px solid #454c56;border-bottom-width:2px;border-r
 <body>
 <!-- ===================== 顶栏 ===================== -->
 <header id="topbar">
-  <div class="brand"><span class="logo">◧</span><b>拉片台</b><span class="ver">v2</span></div>
+  <div class="brand"><span class="logo">◧</span><b>拉片台</b></div>
   <input id="projTitle" class="proj-title" value="未命名拉片工程" spellcheck="false" title="工程名">
   <div class="tb-group">
     <button class="btn" id="btnImport" title="导入本地视频（不上传）">导入视频</button>
@@ -4940,7 +4939,7 @@ LP.sbd = (function () {
 /* =========================================================================
  * 80 export / ai — 导出 CSV / Markdown / 素材包 / 工程 JSON + AI 三模式
  * R-022 素材包汇总（维度+文字+转写）并导出
- * R-023 AI 三模式，默认模式③（导出给 WorkBuddy），不默认调云端
+ * R-023 AI 三模式，默认模式③（导出素材包手动分析），不默认调云端
  * R-024 导出 CSV / 复制 Markdown / 导出素材包
  * R-025 工程 JSON 导入导出（不含视频本体）
  * ========================================================================= */
@@ -5135,7 +5134,7 @@ LP.exporter = (function () {
   function exportPack() {
     if (!LP.state.project.shots.length) return U.toast('还没有片段', 'err');
     U.download(safeName() + '_素材包.md', buildPack(), 'text/markdown');
-    U.toast('素材包已导出 · 拖进 WorkBuddy 即可生成报告', 'ok');
+    U.toast('素材包已导出 · 粘贴到 AI 对话框即可生成报告', 'ok');
   }
   async function copyPack() {
     const ok = await U.copy(buildPack());
@@ -5213,8 +5212,8 @@ LP.exporter = (function () {
     c4.innerHTML = '<h3>AI 报告 · 三种模式</h3><div class="sub">默认走隐私路径：不联网、不上传，导出素材包由你自己交给 AI。</div>';
     const modes = [
       {
-        k: 'export', t: '③ 导出给 WorkBuddy 手动分析', badge: '<span class="badge rec">默认推荐</span>',
-        d: '把素材包（Markdown）导出或复制，拖进 WorkBuddy / 任意大模型对话框，让它出完整报告。质量最高，素材本体不出机——只有你写的文字离开这台电脑，视频从不上传。'
+        k: 'export', t: '③ 导出素材包手动分析', badge: '<span class="badge rec">默认推荐</span>',
+        d: '把素材包（Markdown）导出或复制，粘贴到任意 AI 对话框让它出完整报告。质量最高，素材本体不出机——只有你写的文字离开这台电脑，视频从不上传。'
       },
       {
         k: 'local', t: '① 本地 WebLLM', badge: '<span class="badge">全隐私·需下载模型</span>',
@@ -6110,7 +6109,7 @@ LP.help = (function () {
     guide.appendChild(el('div', { class: 'm-t', text: '想要真正的内容分析？' }));
     guide.appendChild(el('div', {
       class: 'm-d',
-      text: '到底部「素材包 / 报告」页，把维度＋文字＋转写导出成结构化素材包，交给 WorkBuddy 出完整报告——质量最高，而且素材依然不出机。'
+      text: '到底部「素材包 / 报告」页，把维度＋文字＋转写导出成结构化素材包，交给 AI 出完整报告——质量最高，而且素材依然不出机。'
     }));
     body.appendChild(guide);
 
@@ -6207,7 +6206,7 @@ LP.help = (function () {
       ['① 导入视频（素材不出机）', '点顶栏「导入视频」，或把文件直接拖进左边的媒体池。视频只在本机浏览器里打开，工程自动存在本地，关掉页面数据还在。'],
       ['② 切出镜头', '点「自动切分」先切一版，再手动精修：B 刀片在时间线上点一下就切开，⌘/Ctrl+B 在播放头处拆分；也可以用 I / O 打点后点「+ 建片段」。相邻片段选中按 G 可以并成段落组。'],
       ['③ 逐镜填七维度 ＋ 写分析记录', '选中片段，在右侧检查器按 景别／运镜／调度／光色／声音／剪辑点／七问 依次填。不知道写什么，就点字段旁边的「?」看提示卡，或打开顶栏「术语库」查定义和经典片例。左边「分析记录」可以像 Notion 一样写长文、插语音。'],
-      ['④ 导出素材包，让 AI 出报告', '到底部「素材包 / 报告」页，一键生成结构化文本包，复制给 WorkBuddy 出完整分析。默认不调任何云端接口——这是隐私红线，也是这个工具的前提。']
+      ['④ 导出素材包，让 AI 出报告', '到底部「素材包 / 报告」页，一键生成结构化文本包，复制给 AI 出完整分析。默认不调任何云端接口——这是隐私红线，也是这个工具的前提。']
     ].forEach(function (s) {
       const m = el('div', { class: 'mode', style: 'cursor:default' });
       m.appendChild(el('div', { class: 'm-t', text: s[0] }));

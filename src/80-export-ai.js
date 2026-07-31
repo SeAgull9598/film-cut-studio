@@ -1,7 +1,7 @@
 /* =========================================================================
  * 80 export / ai — 导出 CSV / Markdown / 素材包 / 工程 JSON + AI 三模式
  * R-022 素材包汇总（维度+文字+转写）并导出
- * R-023 AI 三模式，默认模式③（导出给 WorkBuddy），不默认调云端
+ * R-023 AI 三模式，默认模式③（导出素材包手动分析），不默认调云端
  * R-024 导出 CSV / 复制 Markdown / 导出素材包
  * R-025 工程 JSON 导入导出（不含视频本体）
  * ========================================================================= */
@@ -196,7 +196,7 @@ LP.exporter = (function () {
   function exportPack() {
     if (!LP.state.project.shots.length) return U.toast('还没有片段', 'err');
     U.download(safeName() + '_素材包.md', buildPack(), 'text/markdown');
-    U.toast('素材包已导出 · 拖进 WorkBuddy 即可生成报告', 'ok');
+    U.toast('素材包已导出 · 粘贴到 AI 对话框即可生成报告', 'ok');
   }
   async function copyPack() {
     const ok = await U.copy(buildPack());
@@ -274,8 +274,8 @@ LP.exporter = (function () {
     c4.innerHTML = '<h3>AI 报告 · 三种模式</h3><div class="sub">默认走隐私路径：不联网、不上传，导出素材包由你自己交给 AI。</div>';
     const modes = [
       {
-        k: 'export', t: '③ 导出给 WorkBuddy 手动分析', badge: '<span class="badge rec">默认推荐</span>',
-        d: '把素材包（Markdown）导出或复制，拖进 WorkBuddy / 任意大模型对话框，让它出完整报告。质量最高，素材本体不出机——只有你写的文字离开这台电脑，视频从不上传。'
+        k: 'export', t: '③ 导出素材包手动分析', badge: '<span class="badge rec">默认推荐</span>',
+        d: '把素材包（Markdown）导出或复制，粘贴到任意 AI 对话框让它出完整报告。质量最高，素材本体不出机——只有你写的文字离开这台电脑，视频从不上传。'
       },
       {
         k: 'local', t: '① 本地 WebLLM', badge: '<span class="badge">全隐私·需下载模型</span>',
