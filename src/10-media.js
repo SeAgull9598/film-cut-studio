@@ -50,11 +50,15 @@ LP.media = (function () {
 
   /** R-001 导入本地文件：只走内存 ObjectURL，无任何上传 */
   async function importFile(file, opts) {
-    if (!file || !/^video\//.test(file.type) && !/\.(mp4|mov|webm|m4v|mkv)$/i.test(file.name)) {
-      return U.toast('请选择视频文件', 'err');
+    const name = (file && file.name) || '';
+    const type = (file && file.type) || '';
+    const isVideoType = /^video\//.test(type);
+    const isVideoExt = /\.(mp4|mov|webm|m4v|mkv|avi|flv|wmv|3gp|ogv|mts|m2ts|vob|mpg|mpeg)$/i.test(name);
+    if (!file || (!isVideoType && !isVideoExt)) {
+      return U.toast('请选择视频文件（MP4 / MOV / WebM / MKV …）', 'err');
     }
     opts = opts || {};
-    U.toast('正在载入 ' + file.name + '…');
+    U.toast('正在载入 ' + name + '…');
     const url = URL.createObjectURL(file);
     let meta;
     try { meta = await attach(url); }
@@ -76,11 +80,16 @@ LP.media = (function () {
     applyRatioUI();
     renderMediaCard();
 
-    /* R-025 缓存到 IndexedDB，关页重开可恢复（失败只警告不阻断） */
-    LP.storage.putBlob(idbKey, file).then(ok => {
-      if (ok) U.toast('已载入并本地缓存 · 素材不出机', 'ok');
-      else U.toast('已载入（本机缓存不可用，重开需重新选片）');
-    });
+    /* R-025 缓存到 IndexedDB，关页重开可恢复（失败只警告不阻断）
+       大文件（手机存储有限）跳过缓存，避免撑爆本地存储 */
+    if (file.size > 400 * 1048576) {
+      U.toast('已载入（文件较大，未做本机缓存，重开需重新选片）');
+    } else {
+      LP.storage.putBlob(idbKey, file).then(ok => {
+        if (ok) U.toast('已载入并本地缓存 · 素材不出机', 'ok');
+        else U.toast('已载入（本机缓存不可用，重开需重新选片）');
+      });
+    }
     return true;
   }
 

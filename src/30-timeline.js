@@ -9,6 +9,7 @@ LP.timeline = (function () {
   let pps = 60;             // px per second
   let tool = 'arrow';       // arrow | blade
   let dragging = null;
+  let lastDragAt = 0;
   let scrollEl, innerEl, rulerEl, shotsEl, groupsEl, headEl, ioEl, snapEl;
 
   const duration = () => (LP.state.project.videoRef?.duration) || 60;
@@ -144,6 +145,7 @@ LP.timeline = (function () {
 
   /* ------------------------------------------------------- 交互 */
   function onShotsClick(e) {
+    if (lastDragAt && Date.now() - lastDragAt < 350) return;   /* 拖动刚结束，忽略误触 click */
     const clip = e.target.closest('.tl-clip');
     if (!clip) return;
     const s = LP.state.shot(clip.dataset.id); if (!s) return;
@@ -173,33 +175,37 @@ LP.timeline = (function () {
     LP.player.playQueue(ms.map(s => ({ in: s.in, out: s.out })), { label: grp.name });  /* R-012 */
   }
 
-  /* 点击标尺/空白 = 移动播放头 */
-  function onScrub(e) {
-    if (e.target.closest('.tl-clip') || e.target.closest('.tl-grp')) return;
-    const rect = innerEl.getBoundingClientRect();
-    const t = U.clamp(x2t(e.clientX - rect.left), 0, duration());
+  /* 点击标尺/空白 = 移动播放头（鼠标+触摸共用） */
+  function startScrub(rect, startEv) {
+    const cx = ev => ev.touches ? ev.touches[0].clientX : ev.clientX;
+    const t0 = U.clamp(x2t(cx(startEv) - rect.left), 0, duration());
     LP.player.clearRange();
-    LP.player.seek(t);
+    LP.player.seek(t0);
     const move = ev => {
-      const tt = U.clamp(x2t(ev.clientX - rect.left), 0, duration());
+      if (ev.touches) ev.preventDefault();
+      const tt = U.clamp(x2t(cx(ev) - rect.left), 0, duration());
       LP.player.seek(tt);
     };
-    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+    const up = () => {
+      document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+      document.removeEventListener('touchmove', move); document.removeEventListener('touchend', up);
+    };
     document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+    document.addEventListener('touchmove', move, { passive: false }); document.addEventListener('touchend', up);
+  }
+  function onScrub(e) {
+    if (e.target.closest && (e.target.closest('.tl-clip') || e.target.closest('.tl-grp'))) return;
+    startScrub(innerEl.getBoundingClientRect(), e);
   }
 
-  /* 拖拽片段边缘改 in/out（非破坏性，只改时间码） */
-  function onHandleDown(e) {
-    const hdl = e.target.closest('.c-hdl'); if (!hdl) return;
-    e.stopPropagation(); e.preventDefault();
-    const clip = hdl.closest('.tl-clip');
-    const s = LP.state.shot(clip.dataset.id); if (!s) return;
-    const edge = hdl.dataset.edge;
-    const rect = innerEl.getBoundingClientRect();
+  /* 拖拽片段边缘改 in/out（非破坏性，只改时间码） — 鼠标+触摸共用 */
+  function startHandleDrag(s, edge, rect) {
     LP.state.push();
     dragging = true;
+    const cx = ev => ev.touches ? ev.touches[0].clientX : ev.clientX;
     const move = ev => {
-      const raw = U.clamp(x2t(ev.clientX - rect.left), 0, duration());
+      if (ev.touches) ev.preventDefault();
+      const raw = U.clamp(x2t(cx(ev) - rect.left), 0, duration());
       const min = 1 / (LP.state.project.meta.fps || 25);
       const sn = snapTime(raw, s.id);
       const t = sn.t;
@@ -212,10 +218,27 @@ LP.timeline = (function () {
     };
     const up = () => {
       document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+      document.removeEventListener('touchmove', move); document.removeEventListener('touchend', up);
       hideSnap();
-      dragging = false; LP.state.commit('调整片段边界');
+      dragging = false; lastDragAt = Date.now(); LP.state.commit('调整片段边界');
     };
     document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+    document.addEventListener('touchmove', move, { passive: false }); document.addEventListener('touchend', up);
+  }
+  function onHandleDown(e) {
+    const hdl = e.target.closest('.c-hdl'); if (!hdl) return;
+    e.stopPropagation(); e.preventDefault();
+    const clip = hdl.closest('.tl-clip');
+    const s = LP.state.shot(clip.dataset.id); if (!s) return;
+    startHandleDrag(s, hdl.dataset.edge, innerEl.getBoundingClientRect());
+  }
+  /* 触摸：合成 mousedown 在 touchend 后才触发（太晚），必须直接监听 touchstart */
+  function onHandleTouchStart(e) {
+    const hdl = e.target.closest('.c-hdl'); if (!hdl) return;
+    e.stopPropagation(); e.preventDefault();
+    const clip = hdl.closest('.tl-clip');
+    const s = LP.state.shot(clip.dataset.id); if (!s) return;
+    startHandleDrag(s, hdl.dataset.edge, innerEl.getBoundingClientRect());
   }
 
   function setTool(t) {
@@ -237,10 +260,13 @@ LP.timeline = (function () {
     snapEl = U.el('div', { class: 'tl-snap' }); snapEl.hidden = true; innerEl.appendChild(snapEl);
 
     shotsEl.addEventListener('mousedown', onHandleDown);
+    shotsEl.addEventListener('touchstart', onHandleTouchStart, { passive: false });
     shotsEl.addEventListener('click', onShotsClick);
     groupsEl.addEventListener('click', onGroupsClick);
     rulerEl.addEventListener('mousedown', onScrub);
+    rulerEl.addEventListener('touchstart', onScrub, { passive: false });
     innerEl.addEventListener('mousedown', e => { if (e.target === innerEl || e.target === shotsEl || e.target === groupsEl) onScrub(e); });
+    innerEl.addEventListener('touchstart', e => { if (e.target === innerEl || e.target === shotsEl || e.target === groupsEl) onScrub(e); }, { passive: false });
 
     /* 滚轮缩放（Cmd/Ctrl+滚轮）与横向滚动 */
     scrollEl.addEventListener('wheel', e => {
