@@ -1,0 +1,167 @@
+<!-- ===================== 顶栏 ===================== -->
+<header id="topbar">
+  <div class="brand"><span class="logo">◧</span><b>拉片台</b><span class="ver">v2</span></div>
+  <input id="projTitle" class="proj-title" value="未命名拉片工程" spellcheck="false" title="工程名">
+  <div class="tb-group">
+    <button class="btn" id="btnImport" title="导入本地视频（不上传）">导入视频</button>
+    <button class="btn" id="btnAutoCut" title="自动切分镜头（本地计算）">自动切分</button>
+    <button class="btn" id="btnGrab" title="抓取当前帧作为关键帧附件">抓帧</button>
+  </div>
+  <div class="tb-group">
+    <button class="btn" id="btnUndo" title="撤销 Cmd/Ctrl+Z">↶</button>
+    <button class="btn" id="btnRedo" title="重做 Cmd/Ctrl+Shift+Z">↷</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="tb-group">
+    <button class="btn" id="btnSaveJson" title="导出工程 JSON（不含视频本体）">导出工程</button>
+    <button class="btn" id="btnLoadJson" title="导入工程 JSON">导入工程</button>
+    <button class="btn" id="btnHelp" title="快捷键速查 ?">? 快捷键</button>
+    <button class="btn" id="btnGuide" title="术语速查 + 示例镜头库">术语库</button>
+  </div>
+  <div class="privacy" title="所有处理都在本机浏览器内完成，没有任何上传"><span class="dot"></span>本地运行 · 素材不出机<span id="saveDot" class="save-dot" title="已自动保存"></span></div>
+</header>
+
+<!-- ===================== 页面：拉片台 ===================== -->
+<section class="page" id="page-cut">
+  <div class="cut-grid">
+
+    <!-- 左：媒体池 / 片段列表 -->
+    <aside class="panel pool" id="pool">
+      <div class="panel-hd"><span>媒体池 / 片段</span><span class="hd-sub" id="poolCount">0 镜</span></div>
+      <div class="pool-media" id="poolMedia">
+        <div class="drop" id="dropZone">
+          <div class="drop-ic">⇩</div>
+          <div class="drop-t">拖入视频，或点击选择</div>
+          <div class="drop-s">仅在本机内存中打开 · 不上传</div>
+        </div>
+      </div>
+      <div class="pool-tools">
+        <input id="poolSearch" class="mini-input" placeholder="搜索片段 / 标注…">
+        <select id="poolFilter" class="mini-input" title="按景别过滤">
+          <option value="">全部景别</option>
+        </select>
+      </div>
+      <div class="pool-list" id="poolList"></div>
+    </aside>
+
+    <!-- 中：检视器 -->
+    <main class="panel viewer" id="viewer">
+      <div class="panel-hd">
+        <span>检视器</span>
+        <span class="hd-sub" id="viewerInfo">未载入</span>
+        <span class="grow"></span>
+        <label class="chk"><input type="checkbox" id="loopChk"> 循环</label>
+        <span class="ratio-tag" id="ratioTag">—</span>
+      </div>
+      <div class="stage" id="stage">
+        <video id="video" playsinline></video>
+        <canvas id="grabCanvas" hidden></canvas>
+        <div class="stage-empty" id="stageEmpty">导入视频后在此播放<br><small>16:9 与 9:16 自动 letterbox 适配</small></div>
+        <div class="stage-badge" id="playingBadge" hidden>片段播放中</div>
+      </div>
+      <div class="transport">
+        <div class="tc-box"><span class="tc" id="tcNow">00:00:00:00</span><span class="tc-sub" id="tcDur">/ 00:00:00:00</span></div>
+        <div class="tp-btns">
+          <button class="btn ic" id="btnPrevCut" title="上一个剪辑点 Shift+←">|◀</button>
+          <button class="btn ic" id="btnStepB" title="上一帧 ←">◀|</button>
+          <button class="btn ic" id="btnJ" title="倒放 J">◀◀</button>
+          <button class="btn ic play" id="btnPlay" title="播放/暂停 Space">▶</button>
+          <button class="btn ic" id="btnL" title="正放 L">▶▶</button>
+          <button class="btn ic" id="btnStepF" title="下一帧 →">|▶</button>
+          <button class="btn ic" id="btnNextCut" title="下一个剪辑点 Shift+→">▶|</button>
+          <span class="rate" id="rateTag"></span>
+        </div>
+        <div class="tp-io">
+          <button class="btn sm" id="btnIn" title="设入点 I">I 入点</button>
+          <span class="io-val" id="ioVal">— / —</span>
+          <button class="btn sm" id="btnOut" title="设出点 O">O 出点</button>
+          <button class="btn sm accent" id="btnAddShot" title="用当前入出点新建片段">+ 建片段</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- 右：检查器（维度 + 块记录） -->
+    <aside class="panel inspector" id="inspector">
+      <div class="panel-hd">
+        <span>检查器</span>
+        <span class="hd-sub" id="inspTitle">未选中</span>
+        <span class="grow"></span>
+        <button class="btn xs" id="btnAiFill" title="AI 初填维度（本地草稿，可改）">AI 初填</button>
+      </div>
+      <div class="insp-tabs">
+        <button class="tab on" data-itab="dims">维度标注</button>
+        <button class="tab" data-itab="blocks">分析记录</button>
+      </div>
+      <div class="insp-body" id="inspDims"></div>
+      <div class="insp-body" id="inspBlocks" hidden></div>
+    </aside>
+  </div>
+
+  <!-- 时间线 -->
+  <section class="tl-wrap panel" id="timelinePanel">
+    <div class="panel-hd tl-hd">
+      <span>时间线</span>
+      <span class="hd-sub" id="tlInfo">0 片段 · 0 组</span>
+      <span class="grow"></span>
+      <div class="tl-tools">
+        <button class="btn xs" id="toolArrow" title="选择工具 A">A 选择</button>
+        <button class="btn xs" id="toolBlade" title="刀片工具 B">B 刀片</button>
+        <span class="sep"></span>
+        <button class="btn xs" id="btnSplit" title="播放头处拆分 Cmd/Ctrl+B">拆分</button>
+        <button class="btn xs" id="btnGroup" title="编组 G">编组</button>
+        <button class="btn xs" id="btnUngroup" title="解散组 Cmd/Ctrl+Shift+G">解散</button>
+        <button class="btn xs" id="btnMerge" title="合并相邻镜头（删除切点）M">合并</button>
+        <button class="btn xs danger" id="btnDelShot" title="删除 Del">删除</button>
+        <span class="sep"></span>
+        <button class="btn xs" id="btnFillGaps" title="把整条片子按现有切点补满片段">补满</button>
+        <span class="sep"></span>
+        <label class="zoom">缩放<input type="range" id="tlZoom" min="10" max="600" value="60"></label>
+      </div>
+    </div>
+    <div class="tl-scroll" id="tlScroll">
+      <div class="tl-inner" id="tlInner">
+        <div class="tl-ruler" id="tlRuler"></div>
+        <div class="tl-track tl-groups" id="tlGroups"></div>
+        <div class="tl-track tl-shots" id="tlShots"></div>
+        <div class="tl-playhead" id="tlPlayhead"></div>
+        <div class="tl-inout" id="tlInOut" hidden></div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ===================== 页面：多维表 ===================== -->
+<section class="page" id="page-table" hidden>
+  <div class="tbl-bar">
+    <div class="view-tabs" id="viewTabs">
+      <button class="vtab on" data-view="grid">▤ 表格</button>
+      <button class="vtab" data-view="kanban">▦ 看板</button>
+      <button class="vtab" data-view="gallery">▩ 画廊</button>
+      <button class="vtab" data-view="form">▭ 表单</button>
+    </div>
+    <span class="grow"></span>
+    <div class="tbl-tools" id="tblTools"></div>
+  </div>
+  <div class="tbl-body" id="tblBody"></div>
+</section>
+
+<!-- ===================== 页面：报告 ===================== -->
+<section class="page" id="page-report" hidden>
+  <div class="rep-wrap" id="repWrap"></div>
+</section>
+
+<!-- ===================== 底部页面切换 ===================== -->
+<nav id="pagebar">
+  <button class="pg on" data-page="cut">◧ 拉片台</button>
+  <button class="pg" data-page="table">▤ 多维表</button>
+  <button class="pg" data-page="report">✎ 素材包 / 报告</button>
+  <span class="grow"></span>
+  <span class="status" id="statusBar">就绪</span>
+</nav>
+
+<input type="file" id="fileInput" accept="video/*" hidden>
+<input type="file" id="jsonInput" accept=".json,application/json" hidden>
+
+<!-- 浮层容器 -->
+<div id="modalRoot"></div>
+<div id="lp-toast"></div>
